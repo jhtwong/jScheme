@@ -1,0 +1,692 @@
+<html>
+
+<body>
+<table width=100%><tr>
+<td align=left><font size=+3><b>jScheme </b></font><font size=+2>0.27</font>
+<td align=left><form><input><input></form>
+<td align=right><font size=+1>by Joseph Wong</font></tr></table>
+</body>
+
+<script language="JavaScript1.2">
+
+// Version 0.27 - added cons,symbol counters
+// (1-31-99)
+// Version 0.26 - fixed stack overflow in IE5 due to not being able to parse '( )
+// (11-23-98)
+// Version 0.25 - fixed set-car!, set-cdr! so that the first arg can be a form that returns a pair-type lvalue
+// (11-22-98)
+// Version 0.24 - added native, set-car!, set-cdr!
+// (03-12-98)
+// Version 0.23 - first public release
+// (02-16-98)
+
+conscount=0;
+symcount=0;
+
+tq=false;  // trace quote
+
+function message(s) { top.frames[1].document.writeln(s,"<BR>"); }
+
+spacechar="  ".charAt(0);
+
+message("<b>Initializing Scheme functionality components for JavaScript 1.2 ...</b>");
+message("<b>Copyright (c) Joseph Wong, 1998</b>");
+message("Implementing pair structure...");
+
+function Pair(a,d) {
+	this.elemA = a;
+	this.elemD = d;
+}
+
+message("Implementing 'cons'...");
+
+function cons(a,d) {
+	conscount++;
+	document.forms[0].elements[0].value="cons count: "+conscount;
+	return new Pair(a,d);
+}
+
+message("Implementing 'car'...");
+
+function car(p) {
+	return p.elemA;
+}
+
+message("Implementing 'cdr'...");
+
+function cdr(p) {
+	return p.elemD;
+}
+
+message("Implementing 'setcar'...");
+
+function setcar(p,x) {
+	p.elemA=x;
+}
+
+message("Implementing 'setcdr'...");
+
+function setcdr(p,x) {
+	p.elemD=x;
+}
+
+message("Implementing list structure...");
+message("Implementing 'list'...");
+
+function list() {
+	l=null;
+	for (var i=list.arguments.length-1; i>=0; i--)
+		l=cons(list.arguments[i],l);
+	return l;
+}
+
+message("Implementing 'listtail'...");
+
+function listtail(l,i) {
+	if (i==0) {
+		return l;
+	} else {
+		return listtail(cdr(l),i-1);
+	}
+}
+
+message("Implementing 'listref'...");
+
+function listref(l,i) {
+	return car(listtail(l,i));
+}
+
+message("Implementing symbols...");
+
+function issymbol(sym) {
+	if (ispairobj(sym)) { return (car(sym)=="**symbol**"); } else { return false; }
+}
+
+symboltostring=cdr;
+
+message("Implementing 'quote'...");
+
+function findsublist(st) {
+	var s=st;
+	s=s.substring(1,s.length-1);
+	var parendepth=0;
+	var quoteon=false;
+	var i=0;
+	do {
+		if (s.charAt(i)=='"') {
+			quoteon=!quoteon;
+		}
+		if (!quoteon) {
+ 		if (s.charAt(i)=="(") {
+			parendepth++;
+		} else {
+			if (s.charAt(i)==")") {
+				parendepth--;
+			}
+		}}
+		i++
+	} while (parendepth>0);
+	var ret1="("+s.substring(1,i-1)+")";
+	var ret2=s.substring(i,s.length);
+	var oldret2=ret2;
+	do {
+		oldret2=ret2;
+		if (ret2.charAt(0)==spacechar) { ret2=ret2.substring(1,ret2.length); }
+	} while (oldret2 != ret2);
+
+	ret2="("+ret2+")"
+	return new Array(ret1,ret2);
+}
+
+function findquotedsublist(st) {
+	var s=st;
+	s=s.substring(1,s.length-1);
+	var parendepth=0;
+	var i=1;
+	do {
+		if (s.charAt(i)=="(") {
+			parendepth++;
+		} else {
+			if (s.charAt(i)==")") {
+				parendepth--;
+			}
+		}
+		i++
+	} while (parendepth>0);
+	var ret1="("+s.substring(2,i-1)+")";
+	var ret2=s.substring(i,s.length);
+	var oldret2=ret2;
+	do {
+		oldret2=ret2;
+		if (ret2.charAt(0)==spacechar) { ret2=ret2.substring(1,ret2.length); }
+	} while (oldret2 != ret2);
+
+	ret2="("+ret2+")"
+	return new Array(ret1,ret2);
+}
+
+
+function codestring(st) {
+	var s=st;
+	var quoteon=false;
+	for (var i=0;i < s.length; i++)
+		if (s.charAt(i)=='"') {
+			quoteon=!quoteon;
+		} else {
+		if ((s.charAt(i)==spacechar) && quoteon) {
+			s=s.substring(0,i)+"**spacechar**"+s.substring(i+1,s.length);
+			i+=12;
+		}
+	}
+	return s;
+}
+
+message("           ...list parser...");
+function parselist(st) {
+	var s=st;
+	while ((s.charAt(1)==" ") ||
+		 (s.charAt(1)=="\f") ||
+		 (s.charAt(1)=="\r") ||
+		 (s.charAt(1)=="\n") ||
+		 (s.charAt(1)=="\t"))
+	{
+		s="("+s.substring(2,s.length);
+	}
+			
+	s=codestring(st);
+	
+	var olds=s;
+	do {
+		olds=s;
+		s=s.replace(/\s+/,spacechar);
+	} while (olds != s);
+
+	if (s=="()" || s=="( )") { // second case to cover for IE5
+		return null;
+	} else {
+		if (s.charAt(1)=="(") {
+			var e=findsublist(s);
+			var first=e[0];
+			var rest=e[1];
+			return cons(quote(first),quote(rest));
+		} else if (s.substring(1,3)=="'(") {
+			var e=findquotedsublist(s);
+			var first=list(quote("quote"),quote(e[0]));
+			var rest=e[1];
+			return cons(first,quote(rest));
+		} else {
+			var args=s.substring(1,s.length-1).split(" ");
+			var first=args[0]
+			var rest="";
+			for(var i=1;i < args.length; i++)
+				rest=rest+args[i]+spacechar;
+			if (first==".") {
+				return quote(rest);
+			} else {
+				return cons(quote(first),quote("("+rest+")"));
+			}
+		}
+	}
+}
+
+message("           ...string parser...");
+
+function parsestring(st) {
+	var s=st;
+	for (var i=0;i < s.length; i++)
+		if (s.substr(i,13)=='**spacechar**') {
+			s=s.substring(0,i)+spacechar+s.substring(i+13,s.length);
+			i-=13;
+		}
+	return s;
+}
+
+function quote(st) {
+	var s=st;
+	var olds=s;
+	do {
+		olds=s;
+		if (s.charAt(s.length-1)==spacechar) {
+			s=s.substring(0,s.length-1);
+		}
+	} while (olds != s);
+
+//
+	if (tq) { message("quoting: '"+s+"'") };
+//
+	var ret;
+	if (!isNaN(Number(s)))
+		{ ret=Number(s); return ret; }
+	else if (s.charAt(0)=='"')
+		{ ret=parsestring(s.substring(s.indexOf('"')+1,s.lastIndexOf('"'))); return ret; }
+	else if (s.charAt(0)=="'")
+		{ ret=list(quote("quote"),quote(s.substring(1,s.length))); return ret; }
+	else if (s.charAt(0) != "(")
+		{ symcount++; document.forms[0].elements[1].value="symbols count: "+symcount;
+              ret=cons("**symbol**",s.toLowerCase()); return ret; }
+	else { ret=parselist(s); return ret; }
+}
+
+message("Implementing type checkers...");
+
+function ispairobj(q) {
+	if ((typeof(q)=="object") && (q!=null)) { return (q.elemA != "".elemA) } else { return false; }
+}
+
+function ispair(q) {
+	if (ispairobj(q)) { return !issymbol(q); } else { return false; }
+}
+
+function symbolequal(a,b) {
+	return (issymbol(a) && issymbol(b) && (cdr(a).toLowerCase()==cdr(b)));
+}
+
+function isboolean(x) {
+	return (typeof(x)=="boolean");
+}
+
+function isstring(x) {
+	return (typeof(x)=="string");
+}
+
+function isnumber(q) { return !isNaN(q); }
+
+message("Implementing 'equal'...");
+
+function equal(a,b) {
+	if (ispair(a) && ispair(b)) {
+		return (equal(car(a),car(b)) && equal(cdr(a),cdr(b)));
+	} else {
+		if (isnumber(a) && isnumber(b)) {
+			return (a==b);
+		} else {
+			if (issymbol(a) && issymbol(b)) {
+				return symbolequal(a,b);
+			} else {
+				return (a==b);  // takes care of strings and nulls
+			}
+		}
+	}
+}
+
+message("Implementing 'assoc'...");
+
+function assoc(key,alist) {
+	if (alist==null) {
+		return false;
+	} else {
+		var item=car(alist);
+		if (equal(key,car(item))) {
+			return item;
+		} else {
+			return assoc(key,cdr(alist));
+		}
+	}
+}
+
+message("Implementing 'map'...");
+
+function map(proc,x) {
+	if (x==null) { return null; } else { return cons(proc(car(x)),map(proc,cdr(x))); }
+}
+
+////////////////////////// econoscheme starts here:
+message("<br><b>Initializing Econo-Scheme</b><br>");
+message("<pre>\n;;; A metacircular evaluator for Scheme.\n;;;\n;;; This program is a simple Scheme evaluator, written in Scheme. \n;;;\n;;; <b>Copyright (C) Vincent Manis, 1991. </b>\n;;;\n;;; Cosmetic changes by Carl Alphonce, June 1992.\n;;;\n;;; Code added by Johnny Kam and polished by Carl Alphonce, June 1992. \n;;;\n;;; assq->assv by Jim Little, March 1993.\n;;; find-binding a semi-predicate now  Jim Little, March 1993.\n;;;\n;;; Cosmetic changes, moduleized, macros changed, and user interface revised,\n;;; Vincent Manis, 1993 November. \n;;;\n;;; Harmonized with text (cosmetically).  J. Little 1995 June</pre>");
+message("<b>Ported over to JavaScript 1.2 by Joseph Wong, January 1998.</b><br>");
+
+unbound=quote("**unbound**");
+
+undefined=quote("**undefined**");
+
+voidval=quote("**voidval**");
+
+procedureflag=quote("**procedure**");
+
+function makeprocedure(args,body,env) {
+	return list(procedureflag,args,body,env);
+}
+
+function isprocedure(proc) {
+	if (ispair(proc)) { return equal(car(proc),procedureflag); } else { return false; }
+}
+
+function procedureparams(proc) {
+	if (isprocedure(proc)) {
+		return listref(proc,1);
+	} else {
+		evaluatorerror("Procedure expected",proc);
+		return undefined;
+	}
+}
+
+function procedurebody(proc) {
+	if (isprocedure(proc)) {
+		return listref(proc,2);
+	} else {
+		evaluatorerror("Procedure expected",proc);
+		return undefined;
+	}
+}
+
+function procedureenv(proc) {
+	if (isprocedure(proc)) {
+		return listref(proc,3);
+	} else {
+		evaluatorerror("Procedure expected",proc);
+		return undefined;
+	}
+}
+
+function extendenvironment(names,values,env) {
+
+function newframe(n,v) {
+	if ((n==null) && (v==null))
+		{ return null; }
+	else if (n==null)
+		{ evaluatorerror("Too many arguments",cons(names,values)); return undefined; }
+	else if (v==null)
+		{ evaluatorerror("Too few arguments",cons(names,values)); return undefined; }
+	else if (ispair(n) && issymbol(car(n)))
+		{ return cons(cons(car(n),car(v)),newframe(cdr(n),cdr(v))); }
+	else
+		{ evaluatorerror("Invalid argument list",names); return undefined; }
+}
+
+	return cons(newframe(names,values),env);
+}
+
+function findbinding(symb,env) {
+	if (env==null) {
+		return false;
+	} else {
+		var x=assoc(symb,car(env));
+		if (!x) {
+			return findbinding(symb,cdr(env));
+		} else {
+			return x;
+		}
+	}
+}
+
+function getbinding(symb,env) {
+	var x=findbinding(symb,env);
+	if (!x) {
+		evaluatorerror("Unbound variable (get)",symb);
+		return undefined;
+	} else {
+		return cdr(x);
+	}
+}
+
+function setbinding(symb,val,env) {
+	var x=findbinding(symb,env);
+	if (!x) {
+		evaluatorerror("Unbound variable (set)",symb);
+	} else {
+		setcdr(x,val);
+	}
+}
+
+function setbindingcar(symb,val,env) {
+//	var x=findbinding(symb,env);
+//	if (!x) {
+//		evaluatorerror("Unbound variable (set-car!)",symb);
+//	} else {
+//		ispair(cdr(x)) ? setcar(cdr(x),val) : evaluatorerror("Variable is not a pair (set-car!)",symb);
+//	}
+
+	var x=selfeval(symb,env)
+	ispair(x) ? setcar(x,val) : evaluatorerror("Variable is not a pair (set-car!)",symb);
+}
+
+function setbindingcdr(symb,val,env) {
+//	var x=findbinding(symb,env);
+//	if (!x) {
+//		evaluatorerror("Unbound variable (set-cdr!)",symb);
+//	} else {
+//		ispair(cdr(x)) ? setcdr(cdr(x),val) : evaluatorerror("Variable is not a pair (set-car!)",symb);
+//	}
+
+	var x=selfeval(symb,env)
+	ispair(x) ? setcdr(x,val) : evaluatorerror("Variable is not a pair (set-cdr!)",symb);
+}
+
+function defbinding(symb,val,env) {
+	var x=assoc(symb,car(env));
+	if (!x) {
+		setcar(env,cons(cons(symb,val),car(env)));
+	} else {
+		setcdr(x,val);
+	}
+}
+
+function getarg(exp,n) {
+	return car(getrest(exp,n));
+}
+
+function getrest(exp,n) {
+
+function find(x,m) {
+	if (ispair(x)) {
+		if (m==0) {
+			return x;
+		} else {
+			return find(cdr(x),m-1);
+		}
+	} else {
+		evaluatorerror("Invalid expression",exp);
+		return undefined;
+	}
+}
+
+return find(exp,n);
+}
+
+function selfsequence(exp,env) {
+
+function seq(val,exp,env) {
+	if (exp==null) {
+		return val;
+	} else {
+		return seq(selfeval(car(exp),env),cdr(exp),env);
+	}
+}
+
+return seq(unbound,exp,env);
+}
+
+specialforms=null;
+
+function definespecial(symb,proc) {
+	message("Defining special form: "+symboltostring(symb));
+	var x=assoc(symb,specialforms);
+	if (x) {
+		setcdr(x,proc)
+	} else {
+		specialforms=cons(cons(symb,proc),specialforms);
+	}
+}
+
+function definespecialforms() {
+	definespecial(quote("quote"),new Function("exp","env","return getarg(exp,1);"));
+	definespecial(quote("lambda"),new Function("exp","env","return makeprocedure(getarg(exp,1),getrest(exp,2),env);"));
+	definespecial(quote("set!"),new Function("exp","env","setbinding(getarg(exp,1),selfeval(getarg(exp,2),env),env); return voidval;"));
+	definespecial(quote("if"),new Function("exp","env","return selfeval(getarg(exp,1),env) ? selfeval(getarg(exp,2),env) : selfeval(getarg(exp,3),env);"));
+	definespecial(quote("begin"),new Function("exp","env","return selfsequence(getrest(exp,1),env);"));
+	definespecial(quote("define"),new Function("exp","env","defbinding(getarg(exp,1),selfeval(getarg(exp,2),env),env); return voidval;"));
+	definespecial(quote("define-macro"),new Function("exp","env","defmacro(getarg(exp,1),selfeval(getarg(exp,2),env)); return voidval;"));
+
+	definespecial(quote("let"),new Function("exp","env","return selfsequence(getrest(exp,2),extendenvironment(map(car,getarg(exp,1)),map(new Function('x','return selfeval(car(cdr(x)),env);'),getarg(exp,1)),env))"));
+
+	definespecial(quote("set-car!"),new Function("exp","env","setbindingcar(getarg(exp,1),selfeval(getarg(exp,2),env),env); return voidval;"));
+	definespecial(quote("set-cdr!"),new Function("exp","env","setbindingcdr(getarg(exp,1),selfeval(getarg(exp,2),env),env); return voidval;"));
+}
+
+function defmacro(macname,expander) {
+	definespecial(macname,new Function("exp","env","return selfeval(selfsequence(procedurebody(expander),extendenvironment(procedureparams(expander),list(exp),procedureenv(expander))),env);"));
+}
+
+function selfeval(exp,env) {
+	return simpleform(exp,env);
+}
+
+function isconstant(exp) {
+	return (isnumber(exp) || isboolean(exp) || isstring(exp));
+}
+
+function simpleform(exp,env) {
+	if (isconstant(exp))
+		{ return exp; }
+	else if (issymbol(exp))
+		{ return getbinding(exp,env); }
+	else if (ispair(exp))
+		{	var b=assoc(car(exp),specialforms);
+			return (( b ? cdr(b) : selfapplication )(exp,env)); }
+	else { evaluatorerror("Incorrect expression",exp); return undefined; }
+}
+
+function selfapplication(exp,env) {
+	function evalarg(arg) { return selfeval(arg,env); }
+	var evaluatedargs=map(evalarg,exp);
+	var operator=car(evaluatedargs);
+	var operands=cdr(evaluatedargs);
+
+	if (isprimitive(operator))
+		{ return ((primitiveprocedure(operator))(operands)); }
+	else if (isprocedure(operator))
+		{ return selfsequence(procedurebody(operator),extendenvironment(procedureparams(operator),operands,procedureenv(operator))); }
+	else { evaluatorerror("Procedure required",exp); return undefined; }
+}
+
+function isprimitive(x) {
+	return (typeof(x)=="function");
+}
+
+function primitiveprocedure(x) {
+	return x;
+}
+
+function makeprimitiveenvironment() {
+	var pf=extendenvironment(null,null,null);
+	function def(name,proc) { message("Defining primitive: "+symboltostring(name)); defbinding(name,proc,pf); }
+	
+	def(quote("+"),new Function("x","return ( car(x) + car(cdr(x)));"));
+	def(quote("-"),new Function("x","return ( car(x) - car(cdr(x)));"));
+	def(quote("*"),new Function("x","return ( car(x) * car(cdr(x)));"));
+	def(quote("/"),new Function("x","return ( car(x) / car(cdr(x)));"));
+	def(quote("<"),new Function("x","return ( car(x) < car(cdr(x)));"));
+	def(quote("="),new Function("x","return ( car(x) == car(cdr(x)));"));
+	def(quote(">"),new Function("x","return ( car(x) > car(cdr(x)));"));
+	def(quote("<="),new Function("x","return ( car(x) <= car(cdr(x)));"));
+	def(quote(">="),new Function("x","return ( car(x) >= car(cdr(x)));"));
+
+	def(quote("car"),new Function("x","return car( car(x) );"));
+	def(quote("cdr"),new Function("x","return cdr( car(x) );"));
+	def(quote("null?"),new Function("x","return ( car(x) == null );"));
+	def(quote("not"),new Function("x","return !car(x);"));
+	def(quote("equal?"),new Function("x","return equal( car(x), car(cdr(x)) );"));
+	def(quote("cons"),new Function("x","return cons( car(x), car(cdr(x)) );"));
+
+	def(quote("display"),new Function("x","display( car(x) ); return voidval;"));
+	def(quote("newline"),new Function("x","top.frames[1].document.writeln('<BR>'); return voidval;"));
+
+	def(quote("#t"),true);
+	def(quote("#f"),false);
+
+	def(quote("native"),new Function("x","return eval( car(x) );"));
+	
+	return pf;
+}
+
+function evaluatorerror(what,irritant) {
+	top.frames[1].document.writeln("<BR>Error in self-eval: ",what);
+	if (!equal(voidval,irritant)) { show(irritant); };
+	top.frames[1].document.writeln("<BR>...resetting to top level.<BR>");
+	toplevel();
+}
+
+function show(arg) {
+
+function show1(y) {
+	top.frames[1].document.writeln("(");
+	show(car(y));
+	show2(cdr(y));
+}
+
+function show2(z) {
+	if (z==null)
+		{ top.frames[1].document.writeln(")"); }
+	else if (ispair(z)) {
+		top.frames[1].document.writeln(spacechar);
+		if (isprocedure(z)) {
+			top.frames[1].document.writeln("<procedure>)");
+		} else {
+			show(car(z));
+			show2(cdr(z));
+		}
+	} else {
+		top.frames[1].document.writeln(" . ");
+		show(z);
+		top.frames[1].document.writeln(")");
+	}
+}
+
+if (arg==null)
+	{ top.frames[1].document.writeln("()"); }
+else if (isboolean(arg))
+	{ top.frames[1].document.writeln( arg ? "#t" : "#f" ); }
+else if (ispair(arg)) {
+	if (isprocedure(arg))
+		{ top.frames[1].document.writeln("<procedure>"); }
+	else  { show1(arg); } }
+else if (issymbol(arg)) { top.frames[1].document.writeln(cdr(arg)); }
+else if (typeof(arg)=="string")
+		{ top.frames[1].document.writeln('"',arg,'"'); } else { top.frames[1].document.writeln(arg); }
+
+}
+
+function display(what)
+{
+	show(what);
+	top.frames[1].document.writeln("<BR>");
+}
+
+function toplevel() {}
+
+/////////////////// initialization code below:
+
+message("Initializing special forms...");
+top.frames[1].scrollBy(0,10000);
+
+definespecialforms();
+
+message("");
+message("Initializing primitive environment...");
+top.frames[1].scrollBy(0,10000);
+
+env=makeprimitiveenvironment();
+
+courier=false;
+
+message("");
+message("Initializing repl...");
+top.frames[1].scrollBy(0,10000);
+
+function repl() {
+ 	if (!courier) { top.frames[1].document.writeln("<font face='courier new'>"); courier=true; }
+	exp=top.frames[2].document.forms[0].elements[0].value;
+	if (exp!="") {
+		top.frames[1].document.writeln("jscm>&nbsp;",exp,"<BR>");
+		var quoted=quote(exp);
+		var answer=selfeval(quoted,env);
+		if (!equal(answer,voidval)) { 
+			top.frames[1].document.writeln("&nbsp;&nbsp;&nbsp;=>");
+			display(answer); }
+}}
+
+message("<font size=+2>jScheme is now running.</font><br>");
+top.frames[1].scrollBy(0,10000);
+
+</script>
+</html>

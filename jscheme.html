@@ -1,0 +1,47 @@
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="Author" CONTENT="Joseph Wong">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.03 [en] (Win95; U) [Netscape]">
+   <TITLE>jScheme</TITLE>
+</HEAD>
+<BODY>
+
+<CENTER>
+<H1>
+jScheme</H1></CENTER>
+Welcome to the jScheme home page.&nbsp; jScheme is a barebone Scheme evaluator
+in javascript that can run online on <A HREF="http://www.netscape.com">Netscape
+4.0</A>.&nbsp; This project is the result of a sudden, senseless urge to
+do something <I>stupid</I> with a <A HREF="http://www.ugrad.cs.ubc.ca/spider/cs126/">CPSC
+126</A> lab one Saturday morning.&nbsp; And voil&agrave;, here's the
+result after two full days of work!
+
+<P>Note: This is a <B>barebone</B> implementation of Scheme, and has only
+a <B>handful of primitives</B> and special forms.&nbsp; Note especially
+that <B>this evaluator itself is run off an interpreted environment</B>,
+and <B>does not optimize tail recursion</B>, so don't expect to live to
+see the result of (fib 30000).&nbsp; This also brings up the point that
+I <B>haven't implemented big integers</B> in javascript, therefore (fib
+30000), when it does come up, is a float.&nbsp; Well, you can see that
+you can't really do much with the evaluator as is...... although you can
+define macros.
+
+<P>I must give credit to Vincent Manis and Jim Little, coauthors of the
+CPSC 126 textbook <A HREF="http://www.cs.ubc.ca/spider/little/schematics.html">Schematics
+of Computation</A>, who wrote the original code, in Scheme, for the "metacircular
+evaluator for Scheme", aka Econo-Scheme.&nbsp; Without it, there wouldn't
+be a jScheme (because it's essentially a <I>verbatim</I> port of their
+code).
+
+<p>If you want to find out more about Scheme, go to the <a href="http://www.cs.indiana.edu/scheme-repository/home.html">Scheme Repository</a>.
+<BR>&nbsp;
+
+<p>Oops.&nbsp; Almost forgot:
+<h2><a href="testframe.html">Launch jScheme</a></h2>
+
+<h4><b>One final note: If you resize the window once jScheme has loaded, you must reload it, or it will refuse to work!</b></h4>
+
+<P><I>Last time I wrote anything in my life: 2-16-1998</I>
+</BODY>
+</HTML>
